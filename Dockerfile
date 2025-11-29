@@ -24,6 +24,6 @@ COPY --from=builder /app/terminal-portfolio .
 # Create SSH directory for mounting keys
 RUN mkdir -p .ssh
 
-EXPOSE 2222
+EXPOSE ${PORT}
 
 CMD ["./terminal-portfolio"]
