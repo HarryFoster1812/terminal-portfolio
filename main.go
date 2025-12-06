@@ -21,10 +21,15 @@ import (
 
 const (
 	host = "0.0.0.0"
-	port = "2222"
 )
 
 func main() {
+	// Choose port from environment or fallback to 2222
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "2222"
+	}
+
 	s, err := wish.NewServer(
 		wish.WithAddress(net.JoinHostPort(host, port)),
 		wish.WithHostKeyPath(".ssh/id_ed25519"),
@@ -35,6 +40,7 @@ func main() {
 	)
 	if err != nil {
 		log.Error("Could not start server", "error", err)
+		return
 	}
 
 	done := make(chan os.Signal, 1)

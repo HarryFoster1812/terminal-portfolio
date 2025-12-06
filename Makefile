@@ -22,6 +22,13 @@ run: ## Run the application
 	@echo "Running $(BINARY_NAME)..."
 	go run .
 
+run-linux-22:
+	@echo "Running $(BINARY_NAME) on Linux with port 22..."
+	build
+	sudo setcap cap_net_bind_service=+ep $(BUILD_DIR)/$(BINARY_NAME)
+	EXPORT PORT=22
+	@./$(BUILD_DIR)/$(BINARY_NAME)
+
 ssh-keygen: ## Generate SSH key
 	@echo "Generating SSH key..."
 	@mkdir -p .ssh
