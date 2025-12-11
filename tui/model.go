@@ -39,6 +39,7 @@ type Model struct {
 	viewingBlogEntry  bool
 	viewport          viewport.Model
 	ready             bool
+	lastKey 		  string
 }
 
 // Styles
@@ -113,6 +114,7 @@ func NewModel(width, height int) Model {
 		viewingBlogEntry:  false,
 		viewport:          vp,
 		ready:             false,
+		lastKey: 			"",
 	}
 }
 
@@ -150,66 +152,120 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.updateViewportContent()
 
 	case tea.KeyMsg:
-		switch msg.String() {
-		case "ctrl+c", "q":
+		key := msg.String()
+
+		// Detect capital letters (Shift+key)
+		var shifted rune
+		if len(msg.Runes) == 1 {
+			
+			shifted = msg.Runes[0]
+			fmt.Println(shifted)
+		}
+
+		if key == "ctrl+c" || key == "q" {
 			return m, tea.Quit
+		}
 
-		case "left":
-			if !m.viewingBlogEntry {
-				if m.currentPage > 0 {
-					m.currentPage--
-					m.updateViewportContent()
+		switch key {
+			case "left", "h":
+				if !m.viewingBlogEntry {
+					if m.currentPage > 0 {
+						m.currentPage--
+						m.updateViewportContent()
+					}
 				}
-			}
 
-		case "right":
-			if !m.viewingBlogEntry {
-				if int(m.currentPage) < len(m.pages)-1 {
-					m.currentPage++
-					m.updateViewportContent()
+			case "right", "l":
+				if !m.viewingBlogEntry {
+					if int(m.currentPage) < len(m.pages)-1 {
+						m.currentPage++
+						m.updateViewportContent()
+					}
 				}
-			}
+		}
 
-		case "up":
+
+		if shifted == 'G' {
+			// Shift+g = G = jump bottom
 			if m.currentPage == BlogPage && !m.viewingBlogEntry {
-				if m.selectedBlogEntry > 0 {
-					m.selectedBlogEntry--
-					m.updateViewportContent()
-				}
-			} else if m.viewingBlogEntry || (m.currentPage != BlogPage) {
-				m.viewport, cmd = m.viewport.Update(msg)
-				return m, cmd
+				m.selectedBlogEntry = len(m.blogEntries) - 1
 			}
 
-		case "down":
-			if m.currentPage == BlogPage && !m.viewingBlogEntry {
-				if m.selectedBlogEntry < len(m.blogEntries)-1 {
-					m.selectedBlogEntry++
-					m.updateViewportContent()
-				}
-			} else if m.viewingBlogEntry || (m.currentPage != BlogPage) {
-				m.viewport, cmd = m.viewport.Update(msg)
-				return m, cmd
-			}
+        m.viewport.GotoBottom()
 
-		case "enter":
-			if m.currentPage == BlogPage && !m.viewingBlogEntry {
-				m.viewingBlogEntry = true
+		content := m.getPageContent()
+		m.viewport.SetContent(content)
+        return m, nil
+		}
+
+		if key == "g" {
+			if m.lastKey == "g" {
+				// GG detected
+				m.viewport.GotoTop()
+				if m.currentPage == BlogPage && !m.viewingBlogEntry {
+					m.selectedBlogEntry = 0
+				}
 				m.updateViewportContent()
+				m.lastKey = ""
+				return m, nil
 			}
 
-		case "backspace":
-			if m.viewingBlogEntry {
-				m.viewingBlogEntry = false
-				m.updateViewportContent()
-			}
+			// Single g: wait for next key
+			m.lastKey = "g"
+			return m, nil
+		}
 
-		default:
-			// Pass other keys to viewport for scrolling
-			if m.viewingBlogEntry || (m.currentPage != BlogPage) {
-				m.viewport, cmd = m.viewport.Update(msg)
-				return m, cmd
-			}
+		// Any other key cancels "g" state
+		m.lastKey = ""
+	
+		switch key {
+			case "ctrl+u":
+				m.viewport.LineUp(10)
+				return m, nil
+
+			case "ctrl+d":
+				m.viewport.LineDown(10)
+				return m, nil
+
+			case "up", "k":
+				if m.currentPage == BlogPage && !m.viewingBlogEntry {
+					if m.selectedBlogEntry > 0 {
+						m.selectedBlogEntry--
+						m.updateViewportContent()
+					}
+				} else if m.viewingBlogEntry || (m.currentPage != BlogPage) {
+					m.viewport, cmd = m.viewport.Update(msg)
+					return m, cmd
+				}
+				return m, nil
+
+			case "down", "j":
+				if m.currentPage == BlogPage && !m.viewingBlogEntry {
+					if m.selectedBlogEntry < len(m.blogEntries)-1 {
+						m.selectedBlogEntry++
+						m.updateViewportContent()
+					}
+				} else if m.viewingBlogEntry || (m.currentPage != BlogPage) {
+					m.viewport, cmd = m.viewport.Update(msg)
+					return m, cmd
+				}
+				return m, nil
+
+
+			case "enter":
+				if m.currentPage == BlogPage && !m.viewingBlogEntry {
+					m.viewingBlogEntry = true
+					m.updateViewportContent()
+				}
+				return m, nil
+
+			case "backspace":
+				if m.viewingBlogEntry {
+					m.viewingBlogEntry = false
+					m.updateViewportContent()
+				}			
+				return m, nil
+
 		}
 	}
 
